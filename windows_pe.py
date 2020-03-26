@@ -1,4 +1,4 @@
-from construct import Struct, Const, Int16ul, Int32ul, Array
+import construct
 
 """
 FROM WINNT.H:
@@ -26,24 +26,83 @@ FROM WINNT.H:
     } IMAGE_DOS_HEADER, *PIMAGE_DOS_HEADER;
 
 """
-ImageDosHeader = Struct(
-    "e_magic" / Const("MZ"),
-    "e_cblp" / Int16ul,
-    "e_cp" / Int16ul, 
-    "e_crlc" / Int16ul,
-    "e_cparhdr" / Int16ul,
-    "e_minalloc" / Int16ul,
-    "e_maxalloc" / Int16ul,
-    "e_ss" / Int16ul,
-    "e_sp" / Int16ul,
-    "e_csum" / Int16ul,
-    "e_ip" / Int16ul,
-    "e_cs" / Int16ul,
-    "e_lfarlc" / Int16ul,
-    "e_ovno" / Int16ul,
-    "e_res"  / Array(4, Int16ul),
-    "e_oemid" / Int16ul,
-    "e_oeminfo" / Int16ul,
-    "e_res2" / Array(10, Int16ul),
-    "e_lfanew" / Int32ul,
+ImageDosHeader = construct.Struct(
+    "e_magic" / construct.Const("MZ"),
+    "e_cblp" / construct.Int16ul,
+    "e_cp" / construct.Int16ul, 
+    "e_crlc" / construct.Int16ul,
+    "e_cparhdr" / construct.Int16ul,
+    "e_minalloc" / construct.Int16ul,
+    "e_maxalloc" / construct.Int16ul,
+    "e_ss" / construct.Int16ul,
+    "e_sp" / construct.Int16ul,
+    "e_csum" / construct.Int16ul,
+    "e_ip" / construct.Int16ul,
+    "e_cs" / construct.Int16ul,
+    "e_lfarlc" / construct.Int16ul,
+    "e_ovno" / construct.Int16ul,
+    "e_res"  / construct.Array(4, construct.Int16ul),
+    "e_oemid" / construct.Int16ul,
+    "e_oeminfo" / construct.Int16ul,
+    "e_res2" / construct.Array(10, construct.Int16ul),
+    "e_lfanew" / construct.Int32ul,
 )
+
+"""
+FROM WINNT.H:
+
+    typedef struct _IMAGE_FILE_HEADER {
+        WORD    Machine;
+        WORD    NumberOfSections;
+        DWORD   TimeDateStamp;
+        DWORD   PointerToSymbolTable;
+        DWORD   NumberOfSymbols;
+        WORD    SizeOfOptionalHeader;
+        WORD    Characteristics;
+    } IMAGE_FILE_HEADER, *PIMAGE_FILE_HEADER;
+
+"""
+ImageFileHeader = construct.Struct(
+    "machine" / construct.Int16ul,
+    "section_count" / construct.Int16ul,
+    "timestamp" / construct.Int32ul,
+    "symbol_table_ptr" / construct.Int32ul,
+    "symbol_count" / construct.Int32ul,
+    "optional_header_size" / construct.Int16ul,
+    "characteristics" / construct.Int16ul
+)
+
+ImageNtHeader = construct.Struct(
+    "pe_magic" / construct.Const("PE"),
+    "file_header" / ImageFileHeader, 
+    #"optional_header" /
+)
+
+def dos_stub(lfanew):
+    return construct.Bytes(lfanew - ImageDosHeader.sizeof())
+
+PeFile = construct.Struct(
+    "dos_header" / ImageDosHeader,
+    "dos_stub_program" / dos_stub(construct.this.dos_header.e_lfanew),
+    "pe_header" / 
+)
+
+def test():
+    exe = ""
+    with open(r"C:\Projects\Playground\Playground\Debug\Playground.exe", "rb") as my_file:
+        exe = my_file.read()
+
+    parsed = PeFile.parse(exe)
+
+    return 0
+
+test()
+
+class PeFixChecksum(construct.Adapter):
+    def _decode(self, obj, context, path):
+        # Parsing - Probably irrelevant!
+        return obj
+
+    def _encode(self, obj, context, path):
+        # Building
+        return obj
