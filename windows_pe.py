@@ -72,10 +72,49 @@ ImageFileHeader = construct.Struct(
     "characteristics" / construct.Int16ul
 )
 
+ImageOptionalHeader32 = construct.Struct(
+    "major_linker_version" / construct.Byte,
+    "major_linker_version" / construct.Byte,
+    "code_size" / construct.Int32ul,
+    "initialized_data_size" / construct.Int32ul,
+    "entrypoint_address" / construct.Int32ul,
+    "base_of_code" / construct.Int32ul,
+    "base_of_data" / construct.Int32ul,
+    "image_base" / construct.Int32ul,
+    "section_alignment" / construct.Int32ul,
+    "file_alignment" / construct.Int32ul,
+    "major_operating_system_version" / construct.Int16ul,
+    "minor_operating_system_version" / construct.Int16ul,
+    "major_image_version" / construct.Int16ul,
+    "minor_image_version" / construct.Int16ul,
+    "major_subsystem_version" / construct.Int16ul,
+    "minor_subsystem_version" / construct.Int16ul,
+    "win32_version_value" / construct.Int32ul,
+    "image_size" / construct.Int32ul,
+    "headers_size" / construct.Int32ul,
+    "checksum" / construct.Int32ul,
+    "subsystem" / construct.Int16ul,
+    "dll_characteristics" / construct.Int16ul,
+    "stack_reserve_size" / construct.Int32ul,
+    "stack_commit_size" / construct.Int32ul,
+    "heap_reserve_size" / construct.Int32ul,
+    "heap_commit_size" / construct.Int32ul,
+    "loader_flags" / construct.Int32ul,
+    "rva_and_sizes_count" / construct.Int32ul
+)
+
+ImageOptionalHeader64 = construct.Struct()
+
+# TODO: When building this struct, the optional_header_size in ImageFileHeader should be fixed
+ImageOptionalHeader = construct.Struct(
+    "signature" / construct.Enum(construct.Int16ul, PE32=267, PE64=523),
+    "header" / construct.Switch(construct.this.signature, {"PE32": ImageOptionalHeader32, "PE64": ImageOptionalHeader64})
+)
+
 ImageNtHeader = construct.Struct(
-    "pe_magic" / construct.Const("PE"),
+    "pe_magic" / construct.Const("PE\x00\x00"),
     "file_header" / ImageFileHeader, 
-    #"optional_header" /
+    "optional_header" / ImageOptionalHeader
 )
 
 def dos_stub(lfanew):
@@ -84,7 +123,7 @@ def dos_stub(lfanew):
 PeFile = construct.Struct(
     "dos_header" / ImageDosHeader,
     "dos_stub_program" / dos_stub(construct.this.dos_header.e_lfanew),
-    "pe_header" / 
+    "nt_header" / ImageNtHeader
 )
 
 def test():
