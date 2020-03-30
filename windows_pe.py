@@ -72,11 +72,17 @@ ImageFileHeader = construct.Struct(
     "characteristics" / construct.Int16ul
 )
 
+ImageDataDirectory = construct.Struct(
+    "virtual_address" / construct.Int32ul,
+    "size" / construct.Int32ul
+)
+
 ImageOptionalHeader32 = construct.Struct(
     "major_linker_version" / construct.Byte,
-    "major_linker_version" / construct.Byte,
+    "minor_linker_version" / construct.Byte,
     "code_size" / construct.Int32ul,
     "initialized_data_size" / construct.Int32ul,
+    "uninitialized_data_size" / construct.Int32ul,
     "entrypoint_address" / construct.Int32ul,
     "base_of_code" / construct.Int32ul,
     "base_of_data" / construct.Int32ul,
@@ -100,10 +106,42 @@ ImageOptionalHeader32 = construct.Struct(
     "heap_reserve_size" / construct.Int32ul,
     "heap_commit_size" / construct.Int32ul,
     "loader_flags" / construct.Int32ul,
-    "rva_and_sizes_count" / construct.Int32ul
+    "rva_and_sizes_count" / construct.Int32ul,
+    "data_directory" / construct.Array(construct.this.rva_and_sizes_count, ImageDataDirectory)
 )
 
-ImageOptionalHeader64 = construct.Struct()
+ImageOptionalHeader64 = construct.Struct(
+    "major_linker_version" / construct.Byte,
+    "minor_linker_version" / construct.Byte,
+    "code_size" / construct.Int32ul,
+    "initialized_data_size" / construct.Int32ul,
+    "uninitialized_data_size" / construct.Int32ul,
+    "entrypoint_address" / construct.Int32ul,
+    "base_of_code" / construct.Int32ul,
+    "base_of_data" / construct.Int32ul,
+    "image_base" / construct.Int64ul,
+    "section_alignment" / construct.Int32ul,
+    "file_alignment" / construct.Int32ul,
+    "major_operating_system_version" / construct.Int16ul,
+    "minor_operating_system_version" / construct.Int16ul,
+    "major_image_version" / construct.Int16ul,
+    "minor_image_version" / construct.Int16ul,
+    "major_subsystem_version" / construct.Int16ul,
+    "minor_subsystem_version" / construct.Int16ul,
+    "win32_version_value" / construct.Int32ul,
+    "image_size" / construct.Int32ul,
+    "headers_size" / construct.Int32ul,
+    "checksum" / construct.Int32ul,
+    "subsystem" / construct.Int16ul,
+    "dll_characteristics" / construct.Int16ul,
+    "stack_reserve_size" / construct.Int64ul,
+    "stack_commit_size" / construct.Int64ul,
+    "heap_reserve_size" / construct.Int64ul,
+    "heap_commit_size" / construct.Int64ul,
+    "loader_flags" / construct.Int32ul,
+    "rva_and_sizes_count" / construct.Int32ul,
+    "data_directory" / construct.Array(construct.this.rva_and_sizes_count, ImageDataDirectory)
+)
 
 # TODO: When building this struct, the optional_header_size in ImageFileHeader should be fixed
 ImageOptionalHeader = construct.Struct(
@@ -111,10 +149,40 @@ ImageOptionalHeader = construct.Struct(
     "header" / construct.Switch(construct.this.signature, {"PE32": ImageOptionalHeader32, "PE64": ImageOptionalHeader64})
 )
 
+"""
+typedef struct _IMAGE_SECTION_HEADER {
+    BYTE    Name[IMAGE_SIZEOF_SHORT_NAME];
+    union {
+            DWORD   PhysicalAddress;
+            DWORD   VirtualSize;
+    } Misc;
+    DWORD   VirtualAddress;
+    DWORD   SizeOfRawData;
+    DWORD   PointerToRawData;
+    DWORD   PointerToRelocations;
+    DWORD   PointerToLinenumbers;
+    WORD    NumberOfRelocations;
+    WORD    NumberOfLinenumbers;
+    DWORD   Characteristics;
+} IMAGE_SECTION_HEADER, *PIMAGE_SECTION_HEADER;
+"""
+ImageSectionHeader = construct.Struct(
+    "name" / construct.PaddedString(8, 'ascii'),
+    "virtual_size" / construct.Int32ul,
+    "virtual_address" / construct.Int32ul,
+    "raw_data_size" / construct.Int32ul,
+    "raw_data_ptr" / construct.Int32ul,
+    "relocations_ptr" / construct.Int32ul,
+    "linenumbers_ptr" / construct.Int32ul,
+    "relocation_count" / construct.Int16ul,
+    "linenumbers_count" / construct.Int16ul,
+    "characteristics" / construct.Int32ul
+)
+
 ImageNtHeader = construct.Struct(
     "pe_magic" / construct.Const("PE\x00\x00"),
     "file_header" / ImageFileHeader, 
-    "optional_header" / ImageOptionalHeader
+    "optional_header" / construct.Optional(ImageOptionalHeader),
 )
 
 def dos_stub(lfanew):
@@ -123,7 +191,8 @@ def dos_stub(lfanew):
 PeFile = construct.Struct(
     "dos_header" / ImageDosHeader,
     "dos_stub_program" / dos_stub(construct.this.dos_header.e_lfanew),
-    "nt_header" / ImageNtHeader
+    "nt_header" / ImageNtHeader,
+    "section_table" / construct.Array(construct.this.nt_header.file_header.section_count, ImageSectionHeader)
 )
 
 def test():
